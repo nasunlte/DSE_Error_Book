@@ -138,26 +138,30 @@ def upload_image(file, prefix):
         return supabase.storage.from_("error-images").get_public_url(file_path)
     return ""
 
+if st.button("💾 Done (儲存條題目入雲端)", key="save_q_btn"):
+    all_labels = selected_labels.copy()
+    if custom_label.strip():
+        all_labels.extend([l.strip() for l in custom_label.split(",") if l.strip()])
+    labels_str = ",".join(all_labels)
+    
+    with st.spinner("上載中並同步到雲端..."):
+        q_url = upload_image(q_file, "q")
+        ans_url = upload_image(ans_file, "ans")
+        c_url = upload_image(c_ans_file, "c_ans") if c_ans_file else ""
 
-with st.spinner("上載中並同步到雲端..."):
-                q_url = upload_image(q_file, "q")
-                ans_url = upload_image(ans_file, "ans")
-                c_url = upload_image(c_ans_file, "c_ans") if c_ans_file else ""
-                
-                supabase.table("questions").insert({
-                    "user_id": user_id,
-                    "subject": selected_subject,
-                    "chapter": current_chapter,
-                    "q_img": q_url,
-                    "ans_img": ans_url,
-                    "c_ans_img": c_url,
-                    "c_ans_text": c_ans_text,
-                    "labels": labels_str,
-                    "framework": framework,
-                    "notes": notes
-                }).execute()
-                
-            st.success("🎉 成功新增錯題！")
+        supabase.table("questions").insert({
+            "user_id": user_id,
+            "subject": selected_subject,
+            "chapter": current_chapter,
+            "q_img": q_url,
+            "ans_img": ans_url,
+            "c_ans_img": c_url,
+            "labels": labels_str,
+            "framework": framework,
+            "notes": notes
+        }).execute()
+        st.success("🎉 成功新增錯題！")
+
             st.rerun()
 
     # Tab 2: 重溫與匯出
