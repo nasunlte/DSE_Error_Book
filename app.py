@@ -139,7 +139,7 @@ def upload_image(file, prefix):
     return ""
 
 
-            with st.spinner("上載中並同步到雲端..."):
+with st.spinner("上載中並同步到雲端..."):
                 q_url = upload_image(q_file, "q")
                 ans_url = upload_image(ans_file, "ans")
                 c_url = upload_image(c_ans_file, "c_ans") if c_ans_file else ""
