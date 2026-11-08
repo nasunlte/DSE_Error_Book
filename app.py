@@ -4,11 +4,9 @@ import json
 import io
 import zipfile
 from PIL import Image
-from streamlit_cropper import st_cropper
 from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib import colors
 
 SUPABASE_URL = "https://uurqjawugdbazjukjxof.supabase.co"
 SUPABASE_KEY = "sb_publishable_bGfHwj1ZjE353Cu77mIYmA_-tg34Oc1"
@@ -24,17 +22,15 @@ st.set_page_config(page_title="DSE 錯題簿", page_icon="📚", layout="wide")
 if "user" not in st.session_state:
     st.session_state.user = None
 
-# 圖片上載與處理函數
 def upload_image(file_or_img, prefix, user_id):
     if file_or_img is not None:
+        file_path = f"{user_id}/{prefix}_img.jpg"
         if isinstance(file_or_img, Image.Image):
             buf = io.BytesIO()
             file_or_img.save(buf, format="JPEG")
             file_bytes = buf.getvalue()
-            file_path = f"{user_id}/{prefix}_cropped.jpg"
             content_type = "image/jpeg"
         else:
-            file_path = f"{user_id}/{prefix}_{file_or_img.name}"
             file_bytes = file_or_img.getvalue()
             content_type = file_or_img.type
 
@@ -122,97 +118,97 @@ else:
     st.markdown("---")
     st.header(f"📌 {selected_subject} ➔ {current_chapter}")
 
-    tab1, tab2 = st.tabs(["➕ 加新錯題", "📖 重溫與匯出錯題"])
+    tab1, tab2 = st.tabs(["➕ 加新錯題 (極速上載)", "📖 重溫與匯出錯題"])
 
-    # Tab 1: 加新錯題（優化手機體驗：專屬圖片裁剪與旋轉工作區）
+    # Tab 1: 極速上載與旋轉預覽
     with tab1:
-        st.subheader(f"新增錯題至 [{selected_subject}] ➔ [{current_chapter}]")
-        
-        # 建立三個分欄處理：題目、錯誤答案、正確答案圖片
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.markdown("#### 1. 題目相片")
-            q_file = st.file_uploader("上載題目相片", type=["png", "jpg", "jpeg"], key="q_img_up")
-            q_final = q_file
-            if q_file:
-                with st.expander("✂️ 調整/裁剪此相片 (Rotate & Crop)", expanded=True):
-                    img_q = Image.open(q_file)
-                    # 左下角/上方提供更直覺嘅旋轉掣
-                    rot_q = st.radio("旋轉角度 (Rotate)", [0, 90, 180, 270], horizontal=True, key="rot_q_radio")
-                    if rot_q != 0:
-                        img_q = img_q.rotate(-rot_q, expand=True)
-                    # 順暢嘅 crop 框
-                    q_final = st_cropper(img_q, realtime_update=True, box_color='#FF4B4B', key="cropper_q_custom")
+        st.subheader(f"⚡ 快速上載錯題至 [{selected_subject}] ➔ [{current_chapter}]")
 
-        with col2:
-            st.markdown("#### 2. 你寫嘅錯誤答案")
-            ans_file = st.file_uploader("上載錯誤答案相片", type=["png", "jpg", "jpeg"], key="ans_img_up")
-            ans_final = ans_file
-            if ans_file:
-                with st.expander("✂️ 調整/裁剪此相片 (Rotate & Crop)", expanded=True):
-                    img_ans = Image.open(ans_file)
-                    rot_ans = st.radio("旋轉角度 (Rotate)", [0, 90, 180, 270], horizontal=True, key="rot_ans_radio")
-                    if rot_ans != 0:
-                        img_ans = img_ans.rotate(-rot_ans, expand=True)
-                    ans_final = st_cropper(img_ans, realtime_update=True, box_color='#FF4B4B', key="cropper_ans_custom")
-            
+        c_ans_mode = st.radio("🎯 正確答案模式：", ["上載相片", "文字輸入"], horizontal=True, key="fast_c_ans_mode")
         st.markdown("---")
-        st.write("3. **正確答案 (可選擇上載圖片 或 用電腦打字)**")
-        c_ans_mode = st.radio("正確答案輸入方式", ["上載相片", "文字輸入"], horizontal=True, key="c_ans_mode")
+
+        # 1. 題目相片處理
+        st.write("1️⃣ **【題目】相片**")
+        q_file = st.file_uploader("上載題目相片", type=["png", "jpg", "jpeg"], key="fast_q_up")
+        q_final = None
+        if q_file:
+            img_q = Image.open(q_file)
+            rot_q = st.selectbox("旋轉題目相片角度", [0, 90, 180, 270], key="rot_q_sel")
+            if rot_q != 0:
+                img_q = img_q.rotate(-rot_q, expand=True)
+            st.image(img_q, caption="題目預覽", use_container_width=True)
+            q_final = img_q
+
+        st.markdown("---")
+        # 2. 錯誤答案相片處理
+        st.write("2️⃣ **【你寫嘅錯誤答案】相片**")
+        ans_file = st.file_uploader("上載錯誤答案相片", type=["png", "jpg", "jpeg"], key="fast_ans_up")
+        ans_final = None
+        if ans_file:
+            img_ans = Image.open(ans_file)
+            rot_ans = st.selectbox("旋轉錯誤答案相片角度", [0, 90, 180, 270], key="rot_ans_sel")
+            if rot_ans != 0:
+                img_ans = img_ans.rotate(-rot_ans, expand=True)
+            st.image(img_ans, caption="錯誤答案預覽", use_container_width=True)
+            ans_final = img_ans
+
+        st.markdown("---")
         c_ans_final = None
         c_ans_text = ""
-        
+
         if c_ans_mode == "上載相片":
-            c_ans_file = st.file_uploader("上載正確答案相片", type=["png", "jpg", "jpeg"], key="c_ans_img_up")
-            c_ans_final = c_ans_file
+            st.write("3️⃣ **【正確答案】相片**")
+            c_ans_file = st.file_uploader("上載正確答案相片", type=["png", "jpg", "jpeg"], key="fast_c_ans_up")
             if c_ans_file:
-                with st.expander("✂️ 調整/裁剪此相片 (Rotate & Crop)", expanded=True):
-                    img_c = Image.open(c_ans_file)
-                    rot_c = st.radio("旋轉角度 (Rotate)", [0, 90, 180, 270], horizontal=True, key="rot_c_radio")
-                    if rot_c != 0:
-                        img_c = img_c.rotate(-rot_c, expand=True)
-                    c_ans_final = st_cropper(img_c, realtime_update=True, box_color='#FF4B4B', key="cropper_c_custom")
+                img_c = Image.open(c_ans_file)
+                rot_c = st.selectbox("旋轉正確答案相片角度", [0, 90, 180, 270], key="rot_c_sel")
+                if rot_c != 0:
+                    img_c = img_c.rotate(-rot_c, expand=True)
+                st.image(img_c, caption="正確答案預覽", use_container_width=True)
+                c_ans_final = img_c
         else:
-            c_ans_text = st.text_area("直接輸入正確答案 / 詳解", key="c_ans_txt_input")
+            c_ans_text = st.text_area("3️⃣ 直接輸入正確答案 / 詳解文字", key="fast_c_ans_txt")
 
         st.markdown("---")
         preset_labels = ["Careless mistake", "Wrong unit", "Wrong format", "Concept error", "Calculation error"]
-        selected_labels = st.multiselect("錯因 Label (可多選)", preset_labels, key="labels_multiselect")
-        custom_label = st.text_input("➕ 自定義 Label (多個請用逗號 `,` 分隔)", key="custom_lbl_input")
+        selected_labels = st.multiselect("🏷️ 錯因 Label (可多選)", preset_labels, key="fast_labels_multiselect")
+        custom_label = st.text_input("➕ 自定義 Label (多個請用逗號 `,` 分隔)", key="fast_custom_lbl")
 
-        framework = st.text_area("🧠 答題框架 / 步聚方程式 (支援換行，請保持格式)", key="framework_input")
-        notes = st.text_area("✍️ 個人 Notes / 提醒 / 陷阱位 (支援換行，請保持格式)", key="notes_input")
+        framework = st.text_area("🧠 答題框架 / 步聚方程式 (支援換行)", key="fast_framework")
+        notes = st.text_area("✍️ 個人 Notes / 提醒 / 陷阱位 (支援換行)", key="fast_notes")
 
-        if st.button("💾 Done (儲存條題目入雲端)", key="save_q_btn"):
-            all_labels = selected_labels.copy()
-            if custom_label.strip():
-                all_labels.extend([l.strip() for l in custom_label.split(",") if l.strip()])
-            labels_str = ",".join(all_labels)
-            
-            try:
-                with st.spinner("上載中並同步到雲端..."):
-                    q_url = upload_image(q_final, "q", user_id)
-                    ans_url = upload_image(ans_final, "ans", user_id)
-                    c_url = upload_image(c_ans_final, "c_ans", user_id) if c_ans_final else ""
+        if st.button("🚀 一次過儲存所有內容入雲端", key="fast_save_btn", type="primary"):
+            if not q_file or not ans_file:
+                st.error("❌ 請至少上載【題目】同【錯誤答案】相片先！")
+            else:
+                all_labels = selected_labels.copy()
+                if custom_label.strip():
+                    all_labels.extend([l.strip() for l in custom_label.split(",") if l.strip()])
+                labels_str = ",".join(all_labels)
+                
+                try:
+                    with st.spinner("🚀 正在極速同步到雲端..."):
+                        q_url = upload_image(q_final, "q", user_id)
+                        ans_url = upload_image(ans_final, "ans", user_id)
+                        c_url = upload_image(c_ans_final, "c_ans", user_id) if c_ans_final else ""
 
-                    supabase.table("questions").insert({
-                        "user_id": user_id,
-                        "subject": selected_subject,
-                        "chapter": current_chapter,
-                        "q_img": q_url,
-                        "ans_img": ans_url,
-                        "c_ans_img": c_url,
-                        "labels": labels_str,
-                        "framework": framework,
-                        "notes": notes
-                    }).execute()
-                    st.success("🎉 成功新增錯題！")
-                    st.rerun()
-            except Exception as e:
-                st.error(f"❌ 儲存失敗，詳細錯誤：{e}")
+                        supabase.table("questions").insert({
+                            "user_id": user_id,
+                            "subject": selected_subject,
+                            "chapter": current_chapter,
+                            "q_img": q_url,
+                            "ans_img": ans_url,
+                            "c_ans_img": c_url,
+                            "labels": labels_str,
+                            "framework": framework,
+                            "notes": notes
+                        }).execute()
+                        st.success("🎉 錯題成功儲存！")
+                        st.rerun()
+                except Exception as e:
+                    st.error(f"❌ 儲存失敗，詳細錯誤：{e}")
 
-    # Tab 2: 重溫與匯出（多格式支援：PDF / JPEG / Txt / JSON）
+    # Tab 2: 重溫與匯出
     with tab2:
         st.subheader("📖 錯題庫重溫與匯出")
         
@@ -260,7 +256,6 @@ else:
         
         st.info(f"📁 當前檢視：共找到 **{len(filtered_questions)}** 條錯題")
         
-        # === 多格式匯出功能設定 ===
         if filtered_questions:
             st.markdown("### 📥 匯出錯題選項")
             export_format = st.selectbox("選擇匯出格式", ["PDF 檔案", "JPEG 圖片包 (ZIP)", "Txt 文字檔", "JSON 數據檔"], key="export_format_select")
@@ -274,19 +269,8 @@ else:
                     styles = getSampleStyleSheet()
                     story = []
 
-                    title_style = ParagraphStyle(
-                        'TitleStyle',
-                        parent=styles['Heading1'],
-                        fontSize=18,
-                        spaceAfter=15
-                    )
-                    normal_style = ParagraphStyle(
-                        'NormalStyle',
-                        parent=styles['Normal'],
-                        fontSize=10,
-                        spaceAfter=8,
-                        leading=14
-                    )
+                    title_style = ParagraphStyle('TitleStyle', parent=styles['Heading1'], fontSize=18, spaceAfter=15)
+                    normal_style = ParagraphStyle('NormalStyle', parent=styles['Normal'], fontSize=10, spaceAfter=8, leading=14)
 
                     story.append(Paragraph(f"DSE Error Book - {selected_subject}", title_style))
                     story.append(Spacer(1, 10))
@@ -358,7 +342,7 @@ else:
                     key="download_txt_btn"
                 )
 
-            else:  # JSON 格式
+            else:
                 export_json = json.dumps(filtered_questions, ensure_ascii=False, indent=4)
                 st.download_button(
                     label="⬇️ 點擊下載 JSON 數據備份",
@@ -370,7 +354,6 @@ else:
             
         st.markdown("---")
         
-        # 顯示題目清單與排版（完美支援換行格式）
         for idx, q in enumerate(filtered_questions, 1):
             st.markdown(f"### 題目 #{idx} | 科目：`{q.get('subject')}` ➔ 章節：`{q.get('chapter')}`")
             if q.get("labels"):
@@ -381,26 +364,18 @@ else:
             col_a, col_b, col_c = st.columns(3)
             with col_a:
                 st.write("**題目**")
-                if q.get("q_img"): 
-                    st.image(q["q_img"], use_container_width=True)
-                else: 
-                    st.info("無圖片")
+                if q.get("q_img"): st.image(q["q_img"], use_container_width=True)
+                else: st.info("無圖片")
             with col_b:
                 st.write("**你的錯誤答案**")
-                if q.get("ans_img"): 
-                    st.image(q["ans_img"], use_container_width=True)
-                else: 
-                    st.info("無圖片")
+                if q.get("ans_img"): st.image(q["ans_img"], use_container_width=True)
+                else: st.info("無圖片")
             with col_c:
                 st.write("**正確答案 / 詳解**")
-                if q.get("c_ans_img"): 
-                    st.image(q["c_ans_img"], use_container_width=True)
-                elif q.get("c_ans_text"): 
-                    st.success(q["c_ans_text"])
-                else: 
-                    st.info("無提供")
+                if q.get("c_ans_img"): st.image(q["c_ans_img"], use_container_width=True)
+                elif q.get("c_ans_text"): st.success(q["c_ans_text"])
+                else: st.info("無提供")
                     
-            # 確保換行格式保持不變，直行順暢顯示
             if q.get("framework"):
                 formatted_fw = q['framework'].replace('\n', '  \n')
                 st.info(f"🧠 **答題框架：**  \n\n{formatted_fw}")
@@ -409,7 +384,6 @@ else:
                 formatted_notes = q['notes'].replace('\n', '  \n')
                 st.warning(f"📝 **Notes / 提醒：**  \n\n{formatted_notes}")
 
-            # 每一題專屬的 Edit / Delete 功能
             q_id = q["id"]
             with st.expander(f"✏️ 編輯或刪除此題 (ID: {q_id[:6]}...)"):
                 edit_framework = st.text_area("修改答題框架", value=q.get("framework", ""), key=f"edit_fw_{q_id}")
