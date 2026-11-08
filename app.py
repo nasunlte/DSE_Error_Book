@@ -120,12 +120,6 @@ else:
 
         framework = st.text_area("🧠 答題框架 / 步聚方程式 (用嚟應付同類型題目)", key="framework_input")
         notes = st.text_area("✍️ 個人 Notes / 提醒 / 陷阱位", key="notes_input")
-        
-        if st.button("💾 Done (儲存條題目入雲端)", key="save_q_btn"):
-            all_labels = selected_labels.copy()
-            if custom_label.strip():
-                all_labels.extend([l.strip() for l in custom_label.split(",") if l.strip()])
-            labels_str = ",".join(all_labels)
 def upload_image(file, prefix):
     if file is not None:
         file_path = f"{user_id}/{prefix}_{file.name}"
