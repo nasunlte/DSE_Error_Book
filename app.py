@@ -131,7 +131,8 @@ else:
                 if file is not None:
                     file_path = f"{user_id}/{prefix}_{file.name}"
                     file_bytes = file.getvalue()
-                    supabase.storage.from("error-images").upload(file_path, file_bytes, {"content-type": file.type}, file_options={"upsert": "true"})
+                    supabase.storage.from("error-images").upload(file_path, file_bytes, file_options={"content-type": file.type, "upsert": "true"})
+
                     return supabase.storage.from("error-images").get_public_url(file_path)
                 return ""
 
