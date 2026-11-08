@@ -131,10 +131,14 @@ else:
                 if file is not None:
                     file_path = f"{user_id}/{prefix}_{file.name}"
                     file_bytes = file.getvalue()
-                    supabase.storage.from("error-images").upload(file_path, file_bytes, file_options={"content-type": file.type, "upsert": "true"})
 
                     return supabase.storage.from("error-images").get_public_url(file_path)
                 return ""
+supabase.storage.from("error-images").upload(
+    file_path, 
+    file_bytes, 
+    file_options={"content-type": file.type, "upsert": "true"}
+)
 
             with st.spinner("上載中並同步到雲端..."):
                 q_url = upload_image(q_file, "q")
