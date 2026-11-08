@@ -1,3 +1,4 @@
+
 import streamlit as st
 from supabase import create_client, Client
 import json
@@ -15,6 +16,19 @@ st.set_page_config(page_title="DSE 錯題簿", page_icon="📚", layout="wide")
 
 if "user" not in st.session_state:
     st.session_state.user = None
+
+# 圖片上載至 Supabase 函數（必須放在最外層 Global Scope）
+def upload_image(file, prefix):
+    if file is not None:
+        file_path = f"{user_id}/{prefix}_{file.name}"
+        file_bytes = file.getvalue()
+        supabase.storage.from_("error-images").upload(
+            file_path, 
+            file_bytes, 
+            file_options={"content-type": file.type, "upsert": "true"}
+        )
+        return supabase.storage.from_("error-images").get_public_url(file_path)
+    return ""
 
 # 1. 登入介面
 if not st.session_state.user:
@@ -46,6 +60,8 @@ if not st.session_state.user:
 # 2. 主程式（登入後）
 else:
     user_email = st.session_state.user.email
+    user_id = st.session_state.user.id
+    
     st.sidebar.write(f"👤 已登入：**{user_email}**")
     if st.sidebar.button("🚪 登出", key="logout_btn"):
         supabase.auth.sign_out()
@@ -58,7 +74,6 @@ else:
     st.sidebar.header("🗂️ 科目管理")
     preset_subjects = ["Chemistry", "Biology", "BAFS", "M1", "Math"]
     
-    user_id = st.session_state.user.id
     res = supabase.table("questions").select("subject").eq("user_id", user_id).execute()
     existing_db_subjects = list(set([r["subject"] for r in res.data if r.get("subject")]))
     all_subjects = sorted(list(set(preset_subjects + existing_db_subjects)))
@@ -120,46 +135,62 @@ else:
 
         framework = st.text_area("🧠 答題框架 / 步聚方程式 (用嚟應付同類型題目)", key="framework_input")
         notes = st.text_area("✍️ 個人 Notes / 提醒 / 陷阱位", key="notes_input")
-def upload_image(file, prefix):
-    if file is not None:
-        file_path = f"{user_id}/{prefix}_{file.name}"
-        file_bytes = file.getvalue()
-        supabase.storage.from_("error-images").upload(
-            file_path, 
-            file_bytes, 
-            file_options={"content-type": file.type, "upsert": "true"}
-        )
-        return supabase.storage.from_("error-images").get_public_url(file_path)
-    return ""
 
-if st.button("💾 Done (儲存條題目入雲端)", key="save_q_btn"):
-    all_labels = selected_labels.copy()
-    if custom_label.strip():
-        all_labels.extend([l.strip() for l in custom_label.split(",") if l.strip()])
-    labels_str = ",".join(all_labels)
-    
-    with st.spinner("上載中並同步到雲端..."):
-        q_url = upload_image(q_file, "q")
-        ans_url = upload_image(ans_file, "ans")
-        c_url = upload_image(c_ans_file, "c_ans") if c_ans_file else ""
+        if st.button("💾 Done (儲存條題目入雲端)", key="save_q_btn"):
+            all_labels = selected_labels.copy()
+            if custom_label.strip():
+                all_labels.extend([l.strip() for l in custom_label.split(",") if l.strip()])
+            labels_str = ",".join(all_labels)
+            
+            with st.spinner("上載中並同步到雲端..."):
+                q_url = upload_image(q_file, "q")
+                ans_url = upload_image(ans_file, "ans")
+                c_url = upload_image(c_ans_file, "c_ans") if c_ans_file else ""
 
-        supabase.table("questions").insert({
-            "user_id": user_id,
-            "subject": selected_subject,
-            "chapter": current_chapter,
-            "q_img": q_url,
-            "ans_img": ans_url,
-            "c_ans_img": c_url,
-            "labels": labels_str,
-            "framework": framework,
-            "notes": notes
-        }).execute()
-        st.success("🎉 成功新增錯題！")
-        st.rerun()
+                supabase.table("questions").insert({
+                    "user_id": user_id,
+                    "subject": selected_subject,
+                    "chapter": current_chapter,
+                    "q_img": q_url,
+                    "ans_img": ans_url,
+                    "c_ans_img": c_url,
+                    "labels": labels_str,
+                    "framework": framework,
+                    "notes": notes
+                }).execute()
+                st.success("🎉 成功新增錯題！")
+                st.rerun()
 
     # Tab 2: 重溫與匯出
     with tab2:
         st.subheader("📖 錯題庫重溫與匯出")
+        
+        # === 新增功能：直接在 App 內管理與修改 / 刪除 Chapter ===
+        with st.expander("⚙️ 管理與修改 Chapter (重新命名 / 刪除)"):
+            manage_chapters_res = supabase.table("questions").select("chapter").eq("user_id", user_id).eq("subject", selected_subject).execute()
+            existing_chaps = list(set([row["chapter"] for row in manage_chapters_res.data if row.get("chapter")]))
+            
+            if existing_chaps:
+                target_chap = st.selectbox("選擇要修改的 Chapter", existing_chaps, key="manage_chap_sb")
+                new_chap_name = st.text_input("修改為新 Chapter 名稱：", value=target_chap, key="new_chap_input")
+                
+                col_ren, col_del = st.columns(2)
+                with col_ren:
+                    if st.button("✏️ 確認改名", key="rename_chap_btn"):
+                        if new_chap_name.strip() and new_chap_name != target_chap:
+                            supabase.table("questions").update({"chapter": new_chap_name.strip()}).eq("user_id", user_id).eq("subject", selected_subject).eq("chapter", target_chap).execute()
+                            st.success(f"成功將 Chapter 改名為: {new_chap_name.strip()}")
+                            st.rerun()
+                with col_del:
+                    if st.button("🗑️ 刪除此 Chapter", key="del_chap_btn"):
+                        supabase.table("questions").delete().eq("user_id", user_id).eq("subject", selected_subject).eq("chapter", target_chap).execute()
+                        st.success(f"已刪除 Chapter: {target_chap}")
+                        st.rerun()
+            else:
+                st.info("這個科目暫時沒有任何 Chapter 記錄。")
+        # ====================================================
+
+        st.markdown("---")
         view_mode = st.radio("重溫範圍", ["按當前 Chapter 重溫", "按全科重溫", "全部科目總覽"], horizontal=True, key="view_mode_radio")
         
         if view_mode == "按當前 Chapter 重溫":
