@@ -161,8 +161,7 @@ if st.button("💾 Done (儲存條題目入雲端)", key="save_q_btn"):
             "notes": notes
         }).execute()
         st.success("🎉 成功新增錯題！")
-
-            st.rerun()
+        st.rerun()
 
     # Tab 2: 重溫與匯出
     with tab2:
