@@ -124,50 +124,55 @@ else:
 
     tab1, tab2 = st.tabs(["➕ 加新錯題", "📖 重溫與匯出錯題"])
 
-    # Tab 1: 加新錯題
+    # Tab 1: 加新錯題（優化手機體驗：專屬圖片裁剪與旋轉工作區）
     with tab1:
         st.subheader(f"新增錯題至 [{selected_subject}] ➔ [{current_chapter}]")
         
+        # 建立三個分欄處理：題目、錯誤答案、正確答案圖片
         col1, col2 = st.columns(2)
+        
         with col1:
-            st.write("1. **題目相片**")
-            q_file = st.file_uploader("選擇題目相片", type=["png", "jpg", "jpeg"], key="q_img_up")
+            st.markdown("#### 1. 題目相片")
+            q_file = st.file_uploader("上載題目相片", type=["png", "jpg", "jpeg"], key="q_img_up")
             q_final = q_file
             if q_file:
-                img_q = Image.open(q_file)
-                if st.checkbox("旋轉/裁剪題目相片", key="chk_q"):
-                    rot_deg = st.selectbox("旋轉角度", [0, 90, 180, 270], key="rot_q")
-                    if rot_deg: 
-                        img_q = img_q.rotate(-rot_deg, expand=True)
-                    q_final = st_cropper(img_q, realtime_update=True, key="cropper_q")
+                with st.expander("✂️ 調整/裁剪此相片 (Rotate & Crop)", expanded=True):
+                    img_q = Image.open(q_file)
+                    # 左下角/上方提供更直覺嘅旋轉掣
+                    rot_q = st.radio("旋轉角度 (Rotate)", [0, 90, 180, 270], horizontal=True, key="rot_q_radio")
+                    if rot_q != 0:
+                        img_q = img_q.rotate(-rot_q, expand=True)
+                    # 順暢嘅 crop 框
+                    q_final = st_cropper(img_q, realtime_update=True, box_color='#FF4B4B', key="cropper_q_custom")
 
         with col2:
-            st.write("2. **你寫嘅錯誤答案**")
-            ans_file = st.file_uploader("選擇錯誤答案相片", type=["png", "jpg", "jpeg"], key="ans_img_up")
+            st.markdown("#### 2. 你寫嘅錯誤答案")
+            ans_file = st.file_uploader("上載錯誤答案相片", type=["png", "jpg", "jpeg"], key="ans_img_up")
             ans_final = ans_file
             if ans_file:
-                img_ans = Image.open(ans_file)
-                if st.checkbox("旋轉/裁剪錯誤答案相片", key="chk_ans"):
-                    rot_deg_ans = st.selectbox("旋轉角度", [0, 90, 180, 270], key="rot_ans")
-                    if rot_deg_ans: 
-                        img_ans = img_ans.rotate(-rot_deg_ans, expand=True)
-                    ans_final = st_cropper(img_ans, realtime_update=True, key="cropper_ans")
+                with st.expander("✂️ 調整/裁剪此相片 (Rotate & Crop)", expanded=True):
+                    img_ans = Image.open(ans_file)
+                    rot_ans = st.radio("旋轉角度 (Rotate)", [0, 90, 180, 270], horizontal=True, key="rot_ans_radio")
+                    if rot_ans != 0:
+                        img_ans = img_ans.rotate(-rot_ans, expand=True)
+                    ans_final = st_cropper(img_ans, realtime_update=True, box_color='#FF4B4B', key="cropper_ans_custom")
             
         st.markdown("---")
         st.write("3. **正確答案 (可選擇上載圖片 或 用電腦打字)**")
         c_ans_mode = st.radio("正確答案輸入方式", ["上載相片", "文字輸入"], horizontal=True, key="c_ans_mode")
         c_ans_final = None
         c_ans_text = ""
+        
         if c_ans_mode == "上載相片":
             c_ans_file = st.file_uploader("上載正確答案相片", type=["png", "jpg", "jpeg"], key="c_ans_img_up")
             c_ans_final = c_ans_file
             if c_ans_file:
-                img_c = Image.open(c_ans_file)
-                if st.checkbox("旋轉/裁剪正確答案相片", key="chk_c"):
-                    rot_deg_c = st.selectbox("旋轉角度", [0, 90, 180, 270], key="rot_c")
-                    if rot_deg_c: 
-                        img_c = img_c.rotate(-rot_deg_c, expand=True)
-                    c_ans_final = st_cropper(img_c, realtime_update=True, key="cropper_c")
+                with st.expander("✂️ 調整/裁剪此相片 (Rotate & Crop)", expanded=True):
+                    img_c = Image.open(c_ans_file)
+                    rot_c = st.radio("旋轉角度 (Rotate)", [0, 90, 180, 270], horizontal=True, key="rot_c_radio")
+                    if rot_c != 0:
+                        img_c = img_c.rotate(-rot_c, expand=True)
+                    c_ans_final = st_cropper(img_c, realtime_update=True, box_color='#FF4B4B', key="cropper_c_custom")
         else:
             c_ans_text = st.text_area("直接輸入正確答案 / 詳解", key="c_ans_txt_input")
 
